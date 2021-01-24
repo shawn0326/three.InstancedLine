@@ -1,0 +1,26 @@
+{
+  "name": "three.instancedline",
+  "version": "1.0.0",
+  "description": "Instanced fat lines with miter joins.",
+  "main": "index.js",
+  "scripts": {
+    "build": "rollup -c",
+    "b": "rollup -c",
+    "lint": "eslint src",
+    "lint-fix": "eslint src --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shawn0326/three.InstancedLine.git"
+  },
+  "author": "shawn0326",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/shawn0326/three.InstancedLine/issues"
+  },
+  "homepage": "https://github.com/shawn0326/three.InstancedLine#readme",
+  "devDependencies": {
+    "eslint": "^7.18.0",
+    "rollup": "^2.38.0"
+  }
+}
