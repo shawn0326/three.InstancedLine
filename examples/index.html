@@ -31,14 +31,66 @@
     </div>
 </body>
 
-<script src="../libs/three.js"></script>
+<script src="./libs/three/three.js"></script>
 <script src="./libs/OrbitControls.js"></script>
 <script src="./libs/dat.gui.min.js"></script>
 
 <script src="../build/three.instancedline.js"></script>
 
 <script>
-    // TODO
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(1, 1, 1);
+
+    const points = [];
+    const num = 100;
+    for (let i = 0; i < num; i++) {
+        points.push(new THREE.Vector3(Math.random() * 100 - 50, Math.random() * 100 - 50, Math.random() * 100 - 50));
+    }
+
+    const line = new THREE.InstancedLine();
+    line.material.lineWidth = 5;
+    line.material.transparent = true;
+    line.material.opacity = 0.5;
+    line.material.color.setRGB(1, 0, 0);
+    line.geometry.setFromPoints(points);
+    scene.add(line);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.minDistance = 1;
+    controls.maxDistance = 500;
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        line.material.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', onWindowResize, false);
+    onWindowResize();
+
+    const gui = new dat.GUI();
+    gui.add(line.material.defines, 'DISABLE_CORNER_BROKEN').onChange(() => line.material.needsUpdate = true);
+    gui.add(line.material, 'transparent');
+    gui.add(line.material, 'opacity', 0, 1, 0.01);
+    gui.add(line.material, 'lineWidth', 0, 10, 0.01);
+    gui.add(line.material, 'cornerThreshold', 0, 1, 0.01);
 </script>
 
 </html>

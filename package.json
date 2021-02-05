@@ -1,11 +1,11 @@
 {
   "name": "three.instancedline",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Instanced fat lines with miter joins.",
-  "main": "index.js",
+  "main": "build/three.instancedline.js",
   "scripts": {
-    "build": "rollup -c",
     "b": "rollup -c",
+    "build": "rollup -c",
     "lint": "eslint src",
     "lint-fix": "eslint src --fix"
   },
@@ -13,6 +13,11 @@
     "type": "git",
     "url": "git+https://github.com/shawn0326/three.InstancedLine.git"
   },
+  "keywords": [
+    "three.js",
+    "line",
+    "webgl"
+  ],
   "author": "shawn0326",
   "license": "MIT",
   "bugs": {
@@ -21,6 +26,10 @@
   "homepage": "https://github.com/shawn0326/three.InstancedLine#readme",
   "devDependencies": {
     "eslint": "^7.18.0",
-    "rollup": "^2.38.0"
+    "rollup": "^2.38.0",
+    "@babel/core": "^7.12.13",
+    "@babel/preset-env": "^7.12.13",
+    "@rollup/plugin-babel": "^5.2.3",
+    "rollup-plugin-terser": "^7.0.2"
   }
 }
