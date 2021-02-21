@@ -5,6 +5,7 @@ Instanced fat lines with miter joins. :thumbsup: Inspired by [spite/THREE.MeshLi
 
 * Optimized the storage of the vertex buffer, saving memory.
 * Handle corners more smartly. If the corner is too small, break the corner to avoid sharp corners.
+* Support length-based uv & texture mapping.
 
 ![screenshot.png](./examples/images/screenshot.png)
 

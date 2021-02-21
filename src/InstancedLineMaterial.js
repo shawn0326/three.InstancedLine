@@ -7,7 +7,9 @@ export class InstancedLineMaterial extends THREE.ShaderMaterial {
 		super({
 			type: 'InstancedLineMaterial',
 			defines: {
-				DISABLE_CORNER_BROKEN: false
+				DISABLE_CORNER_BROKEN: false,
+				SIMPLE_UV: false,
+				SCREEN_UV: false // TODO
 			},
 			uniforms: {
 				resolution: { value: new THREE.Vector2(512, 512) },
@@ -15,7 +17,10 @@ export class InstancedLineMaterial extends THREE.ShaderMaterial {
 				cornerThreshold: { value: 0.4 },
 
 				opacity: { value: 1 },
-				color: { value: new THREE.Color() }
+				color: { value: new THREE.Color() },
+				map: { value: null },
+
+				uvTransform: { value: new THREE.Matrix3() }
 			},
 			vertexShader: vertexShader,
 			fragmentShader: fragmentShader
@@ -56,6 +61,26 @@ export class InstancedLineMaterial extends THREE.ShaderMaterial {
 
 	get color() {
 		return this.uniforms.color.value;
+	}
+
+	set map(value) {
+		if (this.uniforms) {
+			this.uniforms.map.value = value;
+		}
+	}
+
+	get map() {
+		return this.uniforms.map.value;
+	}
+
+	set uvTransform(value) {
+		if (this.uniforms) {
+			this.uniforms.uvTransform.value = value;
+		}
+	}
+
+	get uvTransform() {
+		return this.uniforms.uvTransform.value;
 	}
 
 }

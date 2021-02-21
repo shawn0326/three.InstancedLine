@@ -38,6 +38,10 @@
 <script src="../build/three.instancedline.js"></script>
 
 <script>
+    const texture = new THREE.TextureLoader().load('./images/line.png');
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 16;
+
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
 
     const scene = new THREE.Scene();
@@ -53,7 +57,8 @@
     line.material.lineWidth = 5;
     line.material.transparent = true;
     line.material.opacity = 0.5;
-    line.material.color.setRGB(1, 0, 0);
+    line.material.color.setRGB(0, 0, 1);
+    // line.material.map = texture;
     line.geometry.setFromPoints(points);
     scene.add(line);
 
@@ -85,12 +90,29 @@
     window.addEventListener('resize', onWindowResize, false);
     onWindowResize();
 
+    const params = { map: !!line.material.map, repeat: 1, offset: 0 };
     const gui = new dat.GUI();
     gui.add(line.material.defines, 'DISABLE_CORNER_BROKEN').onChange(() => line.material.needsUpdate = true);
     gui.add(line.material, 'transparent');
+    
     gui.add(line.material, 'opacity', 0, 1, 0.01);
     gui.add(line.material, 'lineWidth', 0, 10, 0.01);
     gui.add(line.material, 'cornerThreshold', 0, 1, 0.01);
+
+    gui.add(params, 'map').onChange(() => {
+        line.material.map = params.map ? texture : null;
+        line.material.needsUpdate = true;
+    });
+    gui.add(line.material.defines, 'SIMPLE_UV').onChange(() => line.material.needsUpdate = true);
+    // gui.add(line.material.defines, 'SCREEN_UV').onChange(() => line.material.needsUpdate = true);
+
+    const uvFolder = gui.addFolder('uv');
+    uvFolder.add(params, 'repeat', 0.01, 10, 0.01).onChange(value => {
+        line.material.uniforms.uvTransform.value.setUvTransform(0, params.offset, 1, params.repeat, 0, 0, 0);
+    });
+    uvFolder.add(params, 'offset', 0, 100, 0.01).onChange(value => {
+        line.material.uniforms.uvTransform.value.setUvTransform(0, params.offset, 1, params.repeat, 0, 0, 0);
+    });
 </script>
 
 </html>

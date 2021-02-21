@@ -4,10 +4,16 @@ attribute vec3 instancePrev1;
 attribute vec3 instanceNext1;
 attribute vec3 instanceNext2;
 
+attribute float instancePrevDist;
+attribute float instanceNextDist;
+
 uniform float lineWidth;
 uniform vec2 resolution;
 
 uniform float cornerThreshold;
+
+uniform mat3 uvTransform;
+varying vec2 vUv;
 
 void trimSegment(const in vec4 start, inout vec4 end) {
     // trim end segment so it terminates between the camera plane and the near plane
@@ -87,10 +93,11 @@ void main() {
     } else {
         dir1 = ndcCurr - ndcPrev;
         dir1.x *= aspect;
-        dir1 = normalize(dir1);
-
+        
         dir2 = ndcNext - ndcCurr;
         dir2.x *= aspect;
+
+        dir1 = normalize(dir1);
         dir2 = normalize(dir2);
 
         dir = normalize(dir1 + dir2);
@@ -130,5 +137,18 @@ void main() {
     clip.xy += offset;
 
     gl_Position = clip;
+
+    // uv
+    #ifdef SIMPLE_UV
+        vUv = (uvTransform * vec3(uv, 1.)).xy;
+    #else
+        #ifdef SCREEN_UV
+            vUv = (uvTransform * vec3(uv, 1.)).xy;
+        #else
+            vUv.x = uv.x;
+            vUv.y = mix(instancePrevDist, instanceNextDist, flagY);
+            vUv = (uvTransform * vec3(vUv, 1.)).xy;
+        #endif
+    #endif
 }
 `;

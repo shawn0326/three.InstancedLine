@@ -6,10 +6,10 @@ const positions = [
 	1, -1, 0
 ];
 const uvs = [
-	-1, 1,
+	0, 1,
 	1, 1,
-	-1, -1,
-	1, -1
+	0, 0,
+	1, 0
 ];
 const index = [
 	0, 2, 1,
@@ -34,23 +34,31 @@ class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 
 		const bufferArray = [];
 		const length = points.length;
+		let dist = 0;
 		points.forEach((p, i) => {
-			bufferArray.push(p.x, p.y, p.z);
+			if (i > 0) {
+				dist += p.distanceTo(points[i - 1]);
+			}
+
+			bufferArray.push(p.x, p.y, p.z, dist);
 			if (i === 0 || i === length - 1) {
-				bufferArray.push(p.x, p.y, p.z);
+				bufferArray.push(p.x, p.y, p.z, dist);
 			}
 		});
 
 		// Convert to instance buffer
 		// prev2---prev1---next1---next2
 
-		const instanceBuffer = new THREE.InstancedInterleavedBuffer(new Float32Array(bufferArray), 3, 1);
+		const instanceBuffer = new THREE.InstancedInterleavedBuffer(new Float32Array(bufferArray), 4, 1);
 		instanceBuffer.count -= 3; // fix count
 
 		this.setAttribute('instancePrev2', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 0));
-		this.setAttribute('instancePrev1', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 3));
-		this.setAttribute('instanceNext1', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 6));
-		this.setAttribute('instanceNext2', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 9));
+		this.setAttribute('instancePrev1', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 4));
+		this.setAttribute('instanceNext1', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 8));
+		this.setAttribute('instanceNext2', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 12));
+
+		this.setAttribute('instancePrevDist', new THREE.InterleavedBufferAttribute(instanceBuffer, 1, 7));
+		this.setAttribute('instanceNextDist', new THREE.InterleavedBufferAttribute(instanceBuffer, 1, 11));
 
 		this.computeBoundingBox();
 		this.computeBoundingSphere();
@@ -74,10 +82,16 @@ attribute vec3 instancePrev1;
 attribute vec3 instanceNext1;
 attribute vec3 instanceNext2;
 
+attribute float instancePrevDist;
+attribute float instanceNextDist;
+
 uniform float lineWidth;
 uniform vec2 resolution;
 
 uniform float cornerThreshold;
+
+uniform mat3 uvTransform;
+varying vec2 vUv;
 
 void trimSegment(const in vec4 start, inout vec4 end) {
     // trim end segment so it terminates between the camera plane and the near plane
@@ -129,10 +143,7 @@ void main() {
             } else if (next.z < 0.0 && curr.z >= 0.0) {
                 trimSegment(next, curr);
             }
-        }
-        
-
-        
+        } 
     }
 
     // clip space
@@ -160,10 +171,11 @@ void main() {
     } else {
         dir1 = ndcCurr - ndcPrev;
         dir1.x *= aspect;
-        dir1 = normalize(dir1);
-
+        
         dir2 = ndcNext - ndcCurr;
         dir2.x *= aspect;
+
+        dir1 = normalize(dir1);
         dir2 = normalize(dir2);
 
         dir = normalize(dir1 + dir2);
@@ -203,6 +215,19 @@ void main() {
     clip.xy += offset;
 
     gl_Position = clip;
+
+    // uv
+    #ifdef SIMPLE_UV
+        vUv = (uvTransform * vec3(uv, 1.)).xy;
+    #else
+        #ifdef SCREEN_UV
+            vUv = (uvTransform * vec3(uv, 1.)).xy;
+        #else
+            vUv.x = uv.x;
+            vUv.y = mix(instancePrevDist, instanceNextDist, flagY);
+            vUv = (uvTransform * vec3(vUv, 1.)).xy;
+        #endif
+    #endif
 }
 `;
 
@@ -210,8 +235,14 @@ var fragmentShader = `
 uniform float opacity;
 uniform vec3 color;
 
+#include <map_pars_fragment>
+
+varying vec2 vUv;
+
 void main() {
-    gl_FragColor = vec4(color, opacity);
+    vec4 diffuseColor = vec4(color, opacity);
+    #include <map_fragment>
+    gl_FragColor = diffuseColor;
 }
 `;
 
@@ -221,7 +252,9 @@ class InstancedLineMaterial extends THREE.ShaderMaterial {
 		super({
 			type: 'InstancedLineMaterial',
 			defines: {
-				DISABLE_CORNER_BROKEN: false
+				DISABLE_CORNER_BROKEN: false,
+				SIMPLE_UV: false,
+				SCREEN_UV: false // TODO
 			},
 			uniforms: {
 				resolution: { value: new THREE.Vector2(512, 512) },
@@ -229,7 +262,10 @@ class InstancedLineMaterial extends THREE.ShaderMaterial {
 				cornerThreshold: { value: 0.4 },
 
 				opacity: { value: 1 },
-				color: { value: new THREE.Color() }
+				color: { value: new THREE.Color() },
+				map: { value: null },
+
+				uvTransform: { value: new THREE.Matrix3() }
 			},
 			vertexShader: vertexShader,
 			fragmentShader: fragmentShader
@@ -270,6 +306,26 @@ class InstancedLineMaterial extends THREE.ShaderMaterial {
 
 	get color() {
 		return this.uniforms.color.value;
+	}
+
+	set map(value) {
+		if (this.uniforms) {
+			this.uniforms.map.value = value;
+		}
+	}
+
+	get map() {
+		return this.uniforms.map.value;
+	}
+
+	set uvTransform(value) {
+		if (this.uniforms) {
+			this.uniforms.uvTransform.value = value;
+		}
+	}
+
+	get uvTransform() {
+		return this.uniforms.uvTransform.value;
 	}
 
 }
