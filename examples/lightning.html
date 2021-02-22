@@ -38,7 +38,8 @@
 <script src="../build/three.instancedline.js"></script>
 
 <script>
-    const texture = new THREE.TextureLoader().load('./images/line.png');
+    const texture = new THREE.TextureLoader().load('./images/lightning.png');
+    // const texture = new THREE.TextureLoader().load('./images/uv_grid_opengl.jpg');
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.anisotropy = 16;
 
@@ -46,7 +47,7 @@
     camera.position.set(50, 50, 50);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(1, 1, 1);
+    scene.background = new THREE.Color(0, 0, 0);
 
     const points = [];
     const num = 100;
@@ -55,11 +56,15 @@
     }
 
     const line = new THREE.InstancedLine();
-    line.material.lineWidth = 5;
+    line.material.lineWidth = 40;
     line.material.transparent = true;
-    line.material.opacity = 0.5;
-    line.material.color.setRGB(0, 0, 1);
-    // line.material.map = texture;
+    line.material.opacity = 1;
+    line.material.color.setRGB(1, 1, 1);
+    line.material.depthWrite = false;
+    line.material.depthTest = false;
+    line.material.blending = 2;
+    line.material.map = texture;
+    line.material.uniforms.uvTransform.value.setUvTransform(0, 0, 1, 0.01, 0, 0, 0);
     line.geometry.setFromPoints(points);
     scene.add(line);
 
@@ -80,10 +85,19 @@
         line.material.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
     }
 
+    const params = { map: !!line.material.map, repeat: 0.01, scroll: true };
+
+    let offset = 0;
+
     function animate() {
         requestAnimationFrame(animate);
         controls.update();
         renderer.render(scene, camera);
+
+        if (params.scroll) {
+            offset += 0.001 * Math.random() + 0.003;
+            line.material.uniforms.uvTransform.value.setUvTransform(0, offset, 1, params.repeat, 0, 0, 0);
+        }
     }
 
     animate();
@@ -91,14 +105,18 @@
     window.addEventListener('resize', onWindowResize, false);
     onWindowResize();
 
-    const params = { map: !!line.material.map, repeat: 1, offset: 0 };
     const gui = new dat.GUI();
     gui.add(line.material.defines, 'DISABLE_CORNER_BROKEN').onChange(() => line.material.needsUpdate = true);
     gui.add(line.material, 'transparent');
     
     gui.add(line.material, 'opacity', 0, 1, 0.01);
-    gui.add(line.material, 'lineWidth', 0, 10, 0.01);
+    gui.add(line.material, 'lineWidth', 0, 40, 0.01);
     gui.add(line.material, 'cornerThreshold', 0, 1, 0.01);
+    gui.add(line.material, 'depthTest');
+    gui.add(line.material, 'depthWrite');
+    gui.add(line.material, 'blending', [0, 1, 2]).onChange(value => {
+        line.material.blending = parseInt(value);
+    });
 
     gui.add(params, 'map').onChange(() => {
         line.material.map = params.map ? texture : null;
@@ -111,9 +129,7 @@
     uvFolder.add(params, 'repeat', 0.01, 10, 0.01).onChange(value => {
         line.material.uniforms.uvTransform.value.setUvTransform(0, params.offset, 1, params.repeat, 0, 0, 0);
     });
-    uvFolder.add(params, 'offset', 0, 100, 0.01).onChange(value => {
-        line.material.uniforms.uvTransform.value.setUvTransform(0, params.offset, 1, params.repeat, 0, 0, 0);
-    });
+    uvFolder.add(params, 'scroll');
 </script>
 
 </html>

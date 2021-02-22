@@ -215,6 +215,8 @@ void main() {
     clip.xy += offset;
 
     gl_Position = clip;
+    gl_Position.xyz /= gl_Position.w;
+    gl_Position.w = 1.0;
 
     // uv
     #ifdef SIMPLE_UV
