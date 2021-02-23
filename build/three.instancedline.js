@@ -40,6 +40,9 @@
 	var positions = [-1, 1, 0, 1, 1, 0, -1, -1, 0, 1, -1, 0];
 	var uvs = [0, 1, 1, 1, 0, 0, 1, 0];
 	var index = [0, 2, 1, 2, 3, 1];
+
+	var _vec3_1 = new THREE.Vector3();
+
 	var InstancedLineGeometry = /*#__PURE__*/function (_THREE$InstancedBuffe) {
 		_inheritsLoose(InstancedLineGeometry, _THREE$InstancedBuffe);
 
@@ -93,18 +96,54 @@
 			return this;
 		};
 
-		_proto.computeBoundingBox = function computeBoundingBox() {// TODO
+		_proto.computeBoundingBox = function computeBoundingBox() {
+			if (this.boundingBox === null) {
+				this.boundingBox = new THREE.Box3();
+			}
+
+			var instancePrev1 = this.attributes.instancePrev1;
+
+			if (instancePrev1 !== undefined) {
+				this.boundingBox.setFromBufferAttribute(instancePrev1);
+			}
 		};
 
-		_proto.computeBoundingSphere = function computeBoundingSphere() {// TODO
+		_proto.computeBoundingSphere = function computeBoundingSphere() {
+			if (this.boundingSphere === null) {
+				this.boundingSphere = new THREE.Sphere();
+			}
+
+			if (this.boundingBox === null) {
+				this.computeBoundingBox();
+			}
+
+			var instancePrev1 = this.attributes.instancePrev1;
+
+			if (instancePrev1 !== undefined) {
+				var center = this.boundingSphere.center;
+				this.boundingBox.getCenter(center);
+				var maxRadiusSq = 0;
+
+				for (var i = 0, il = instancePrev1.count; i < il; i++) {
+					_vec3_1.fromBufferAttribute(instancePrev1, i);
+
+					maxRadiusSq = Math.max(maxRadiusSq, center.distanceToSquared(_vec3_1));
+				}
+
+				this.boundingSphere.radius = Math.sqrt(maxRadiusSq);
+
+				if (isNaN(this.boundingSphere.radius)) {
+					console.error('THREE.InstancedLineGeometry.computeBoundingSphere(): Computed radius is NaN. The instanced position data is likely to have NaN values.', this);
+				}
+			}
 		};
 
 		return InstancedLineGeometry;
 	}(THREE.InstancedBufferGeometry);
 
-	var vertexShader = "\nattribute vec3 instancePrev2;\nattribute vec3 instancePrev1;\nattribute vec3 instanceNext1;\nattribute vec3 instanceNext2;\n\nattribute float instancePrevDist;\nattribute float instanceNextDist;\n\nuniform float lineWidth;\nuniform vec2 resolution;\n\nuniform float cornerThreshold;\n\nuniform mat3 uvTransform;\nvarying vec2 vUv;\n\nvoid trimSegment(const in vec4 start, inout vec4 end) {\n		// trim end segment so it terminates between the camera plane and the near plane\n\n		// conservative estimate of the near plane\n		float a = projectionMatrix[2][2]; // 3nd entry in 3th column\n		float b = projectionMatrix[3][2]; // 3nd entry in 4th column\n		float nearEstimate = -0.5 * b / a;\n\n		float alpha = (nearEstimate - start.z) / (end.z - start.z);\n\n		end.xyz = mix(start.xyz, end.xyz, alpha);\n}\n\nvoid main() {\n		float aspect = resolution.x / resolution.y;\n		float flagY = position.y * 0.5 + 0.5;\n\n		// camera space\n		vec4 prev = modelViewMatrix * vec4(mix(instancePrev2, instancePrev1, flagY), 1.0);\n		vec4 curr = modelViewMatrix * vec4(mix(instancePrev1, instanceNext1, flagY), 1.0);\n		vec4 next = modelViewMatrix * vec4(mix(instanceNext1, instanceNext2, flagY), 1.0);\n\n		// special case for perspective projection, and segments that terminate either in, or behind, the camera plane\n		bool perspective = (projectionMatrix[2][3] == -1.0); // 4th entry in the 3rd column\n\n		if (perspective) {\n				if (position.y < 0.) {\n						if (curr.z < 0.0 && next.z >= 0.0) {\n								trimSegment(curr, next);\n						} else if (next.z < 0.0 && curr.z >= 0.0) {\n								trimSegment(next, curr);\n						}\n\n						if (prev.z < 0.0 && curr.z >= 0.0) {\n								trimSegment(prev, curr);\n						} else if (curr.z < 0.0 && prev.z >= 0.0) {\n								trimSegment(curr, prev);\n						}\n				} else {\n						if (prev.z < 0.0 && curr.z >= 0.0) {\n								trimSegment(prev, curr);\n						} else if (curr.z < 0.0 && prev.z >= 0.0) {\n								trimSegment(curr, prev);\n						}\n\n						if (curr.z < 0.0 && next.z >= 0.0) {\n								trimSegment(curr, next);\n						} else if (next.z < 0.0 && curr.z >= 0.0) {\n								trimSegment(next, curr);\n						}\n				} \n		}\n\n		// clip space\n		vec4 clipPrev = projectionMatrix * prev;\n		vec4 clipCurr = projectionMatrix * curr;\n		vec4 clipNext = projectionMatrix * next;\n\n		// ndc space\n		vec2 ndcPrev = clipPrev.xy / clipPrev.w;\n		vec2 ndcCurr = clipCurr.xy / clipCurr.w;\n		vec2 ndcNext = clipNext.xy / clipNext.w;\n\n		// direction\n		vec2 dir, dir1, dir2;\n		float w = 1.0;\n\n		if (prev == curr) {\n				dir = ndcNext - ndcCurr;\n				dir.x *= aspect;\n				dir = normalize(dir);\n		} else if(curr == next) {\n				dir = ndcCurr - ndcPrev;\n				dir.x *= aspect;\n				dir = normalize(dir);\n		} else {\n				dir1 = ndcCurr - ndcPrev;\n				dir1.x *= aspect;\n				\n				dir2 = ndcNext - ndcCurr;\n				dir2.x *= aspect;\n\n				dir1 = normalize(dir1);\n				dir2 = normalize(dir2);\n\n				dir = normalize(dir1 + dir2);\n\n				w = dot(dir1, dir);\n\n				#ifdef DISABLE_CORNER_BROKEN	\n						w = 1.0 / max(w, cornerThreshold);\n				#else\n						float flagT = step(w, cornerThreshold);\n						w = 1.0 / mix(w, 1.0, flagT);\n						dir = mix(dir, mix(dir2, dir1, flagY), flagT);\n				#endif\n		}\n\n		// perpendicular to dir\n		vec2 offset = vec2(dir.y, -dir.x);\n\n		// undo aspect ratio adjustment\n		offset.x /= aspect;\n\n		// sign flip\n\toffset *= float(sign(position.x));\n\n		// adjust for lineWidth\n		offset *= lineWidth * w;\n		\n		// adjust for clip-space to screen-space conversion // maybe resolution should be based on viewport ...\n		offset /= resolution.y;\n		\n		// select end\n		vec4 clip = clipCurr;\n\n		// back to clip space\n		offset *= clip.w;\n\n		clip.xy += offset;\n\n		gl_Position = clip;\n		gl_Position.xyz /= gl_Position.w;\n		gl_Position.w = 1.0;\n\n		// uv\n		#ifdef SIMPLE_UV\n				vUv = (uvTransform * vec3(uv, 1.)).xy;\n		#else\n				#ifdef SCREEN_UV\n						vUv = (uvTransform * vec3(uv, 1.)).xy;\n				#else\n						vUv.x = uv.x;\n						vUv.y = mix(instancePrevDist, instanceNextDist, flagY);\n						vUv = (uvTransform * vec3(vUv, 1.)).xy;\n				#endif\n		#endif\n}\n";
+	var vertexShader = "\nattribute vec3 instancePrev2;\nattribute vec3 instancePrev1;\nattribute vec3 instanceNext1;\nattribute vec3 instanceNext2;\n\nattribute float instancePrevDist;\nattribute float instanceNextDist;\n\nuniform float lineWidth;\nuniform vec2 resolution;\n\nuniform float cornerThreshold;\n\nuniform mat3 uvTransform;\nvarying vec2 vUv;\n\nvoid trimSegment(const in vec4 start, inout vec4 end) {\n		// trim end segment so it terminates between the camera plane and the near plane\n\n		// conservative estimate of the near plane\n		float a = projectionMatrix[2][2]; // 3nd entry in 3th column\n		float b = projectionMatrix[3][2]; // 3nd entry in 4th column\n		float nearEstimate = -0.5 * b / a;\n\n		float alpha = (nearEstimate - start.z) / (end.z - start.z);\n\n		end.xyz = mix(start.xyz, end.xyz, alpha);\n}\n\n#include <logdepthbuf_pars_vertex>\n\nvoid main() {\n		float aspect = resolution.x / resolution.y;\n		float flagY = position.y * 0.5 + 0.5;\n\n		// camera space\n		vec4 prev = modelViewMatrix * vec4(mix(instancePrev2, instancePrev1, flagY), 1.0);\n		vec4 curr = modelViewMatrix * vec4(mix(instancePrev1, instanceNext1, flagY), 1.0);\n		vec4 next = modelViewMatrix * vec4(mix(instanceNext1, instanceNext2, flagY), 1.0);\n\n		// special case for perspective projection, and segments that terminate either in, or behind, the camera plane\n		bool perspective = (projectionMatrix[2][3] == -1.0); // 4th entry in the 3rd column\n\n		if (perspective) {\n				if (position.y < 0.) {\n						if (curr.z < 0.0 && next.z >= 0.0) {\n								trimSegment(curr, next);\n						} else if (next.z < 0.0 && curr.z >= 0.0) {\n								trimSegment(next, curr);\n						}\n\n						if (prev.z < 0.0 && curr.z >= 0.0) {\n								trimSegment(prev, curr);\n						} else if (curr.z < 0.0 && prev.z >= 0.0) {\n								trimSegment(curr, prev);\n						}\n				} else {\n						if (prev.z < 0.0 && curr.z >= 0.0) {\n								trimSegment(prev, curr);\n						} else if (curr.z < 0.0 && prev.z >= 0.0) {\n								trimSegment(curr, prev);\n						}\n\n						if (curr.z < 0.0 && next.z >= 0.0) {\n								trimSegment(curr, next);\n						} else if (next.z < 0.0 && curr.z >= 0.0) {\n								trimSegment(next, curr);\n						}\n				} \n		}\n\n		// clip space\n		vec4 clipPrev = projectionMatrix * prev;\n		vec4 clipCurr = projectionMatrix * curr;\n		vec4 clipNext = projectionMatrix * next;\n\n		// ndc space\n		vec2 ndcPrev = clipPrev.xy / clipPrev.w;\n		vec2 ndcCurr = clipCurr.xy / clipCurr.w;\n		vec2 ndcNext = clipNext.xy / clipNext.w;\n\n		// direction\n		vec2 dir, dir1, dir2;\n		float w = 1.0;\n\n		if (prev == curr) {\n				dir = ndcNext - ndcCurr;\n				dir.x *= aspect;\n				dir = normalize(dir);\n		} else if(curr == next) {\n				dir = ndcCurr - ndcPrev;\n				dir.x *= aspect;\n				dir = normalize(dir);\n		} else {\n				dir1 = ndcCurr - ndcPrev;\n				dir1.x *= aspect;\n				\n				dir2 = ndcNext - ndcCurr;\n				dir2.x *= aspect;\n\n				dir1 = normalize(dir1);\n				dir2 = normalize(dir2);\n\n				dir = normalize(dir1 + dir2);\n\n				w = dot(dir1, dir);\n\n				#ifdef DISABLE_CORNER_BROKEN	\n						w = 1.0 / max(w, cornerThreshold);\n				#else\n						float flagT = step(w, cornerThreshold);\n						w = 1.0 / mix(w, 1.0, flagT);\n						dir = mix(dir, mix(dir2, dir1, flagY), flagT);\n				#endif\n		}\n\n		// perpendicular to dir\n		vec2 offset = vec2(dir.y, -dir.x);\n\n		// undo aspect ratio adjustment\n		offset.x /= aspect;\n\n		// sign flip\n\toffset *= float(sign(position.x));\n\n		// adjust for lineWidth\n		offset *= lineWidth * w;\n		\n		// adjust for clip-space to screen-space conversion // maybe resolution should be based on viewport ...\n		offset /= resolution.y;\n		\n		// select end\n		vec4 clip = clipCurr;\n\n		// back to clip space\n		offset *= clip.w;\n\n		clip.xy += offset;\n\n		gl_Position = clip;\n		\n		gl_Position.xyz /= gl_Position.w;\n		gl_Position.w = 1.0;\n\n		// uv\n		#ifdef SIMPLE_UV\n				vUv = (uvTransform * vec3(uv, 1.)).xy;\n		#else\n				#ifdef SCREEN_UV\n						vUv = (uvTransform * vec3(uv, 1.)).xy;\n				#else\n						vUv.x = uv.x;\n						vUv.y = mix(instancePrevDist, instanceNextDist, flagY);\n						vUv = (uvTransform * vec3(vUv, 1.)).xy;\n				#endif\n		#endif\n\n		#include <logdepthbuf_vertex>\n}\n";
 
-	var fragmentShader = "\nuniform float opacity;\nuniform vec3 color;\n\n#include <map_pars_fragment>\n\nvarying vec2 vUv;\n\nvoid main() {\n		vec4 diffuseColor = vec4(color, opacity);\n		#include <map_fragment>\n		gl_FragColor = diffuseColor;\n}\n";
+	var fragmentShader = "\n#include <common>\n\nuniform float opacity;\nuniform vec3 color;\n\n#include <map_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n\nvarying vec2 vUv;\n\nvoid main() {\n		vec4 diffuseColor = vec4(color, opacity);\n		#include <map_fragment>\n		gl_FragColor = diffuseColor;\n		#include <logdepthbuf_fragment>\n}\n";
 
 	var InstancedLineMaterial = /*#__PURE__*/function (_THREE$ShaderMaterial) {
 		_inheritsLoose(InstancedLineMaterial, _THREE$ShaderMaterial);
@@ -217,10 +256,9 @@
 			var material = new InstancedLineMaterial();
 			_this = _THREE$Mesh.call(this, geometry, material) || this;
 			_this.type = 'InstancedLine';
-			_this.frustumCulled = false; // for test
-
 			return _this;
-		}
+		} // TODO raycast
+
 
 		return InstancedLine;
 	}(THREE.Mesh);

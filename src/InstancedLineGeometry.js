@@ -15,6 +15,8 @@ const index = [
 	2, 3, 1
 ];
 
+const _vec3_1 = new THREE.Vector3();
+
 export class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 
 	constructor() {
@@ -66,11 +68,44 @@ export class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 	}
 
 	computeBoundingBox() {
-		// TODO
+		if (this.boundingBox === null) {
+			this.boundingBox = new THREE.Box3();
+		}
+
+		const instancePrev1 = this.attributes.instancePrev1;
+
+		if (instancePrev1 !== undefined) {
+			this.boundingBox.setFromBufferAttribute(instancePrev1);
+		}
 	}
 
 	computeBoundingSphere() {
-		// TODO
+		if (this.boundingSphere === null) {
+			this.boundingSphere = new THREE.Sphere();
+		}
+
+		if (this.boundingBox === null) {
+			this.computeBoundingBox();
+		}
+
+		const instancePrev1 = this.attributes.instancePrev1;
+		if (instancePrev1 !== undefined) {
+			const center = this.boundingSphere.center;
+			this.boundingBox.getCenter(center);
+
+			let maxRadiusSq = 0;
+
+			for (let i = 0, il = instancePrev1.count; i < il; i++) {
+				_vec3_1.fromBufferAttribute(instancePrev1, i);
+				maxRadiusSq = Math.max(maxRadiusSq, center.distanceToSquared(_vec3_1));
+			}
+
+			this.boundingSphere.radius = Math.sqrt(maxRadiusSq);
+
+			if (isNaN(this.boundingSphere.radius)) {
+				console.error('THREE.InstancedLineGeometry.computeBoundingSphere(): Computed radius is NaN. The instanced position data is likely to have NaN values.', this);
+			}
+		}
 	}
 
 }

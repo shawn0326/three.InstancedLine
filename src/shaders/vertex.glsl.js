@@ -28,6 +28,8 @@ void trimSegment(const in vec4 start, inout vec4 end) {
     end.xyz = mix(start.xyz, end.xyz, alpha);
 }
 
+#include <logdepthbuf_pars_vertex>
+
 void main() {
     float aspect = resolution.x / resolution.y;
     float flagY = position.y * 0.5 + 0.5;
@@ -153,5 +155,7 @@ void main() {
             vUv = (uvTransform * vec3(vUv, 1.)).xy;
         #endif
     #endif
+
+    #include <logdepthbuf_vertex>
 }
 `;

@@ -10,8 +10,8 @@ export class InstancedLine extends THREE.Mesh {
 		super(geometry, material);
 
 		this.type = 'InstancedLine';
-
-		this.frustumCulled = false; // for test
 	}
+
+	// TODO raycast
 
 }

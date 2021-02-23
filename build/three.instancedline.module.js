@@ -16,6 +16,8 @@ const index = [
 	2, 3, 1
 ];
 
+const _vec3_1 = new THREE.Vector3();
+
 class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 
 	constructor() {
@@ -67,11 +69,44 @@ class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 	}
 
 	computeBoundingBox() {
-		// TODO
+		if (this.boundingBox === null) {
+			this.boundingBox = new THREE.Box3();
+		}
+
+		const instancePrev1 = this.attributes.instancePrev1;
+
+		if (instancePrev1 !== undefined) {
+			this.boundingBox.setFromBufferAttribute(instancePrev1);
+		}
 	}
 
 	computeBoundingSphere() {
-		// TODO
+		if (this.boundingSphere === null) {
+			this.boundingSphere = new THREE.Sphere();
+		}
+
+		if (this.boundingBox === null) {
+			this.computeBoundingBox();
+		}
+
+		const instancePrev1 = this.attributes.instancePrev1;
+		if (instancePrev1 !== undefined) {
+			const center = this.boundingSphere.center;
+			this.boundingBox.getCenter(center);
+
+			let maxRadiusSq = 0;
+
+			for (let i = 0, il = instancePrev1.count; i < il; i++) {
+				_vec3_1.fromBufferAttribute(instancePrev1, i);
+				maxRadiusSq = Math.max(maxRadiusSq, center.distanceToSquared(_vec3_1));
+			}
+
+			this.boundingSphere.radius = Math.sqrt(maxRadiusSq);
+
+			if (isNaN(this.boundingSphere.radius)) {
+				console.error('THREE.InstancedLineGeometry.computeBoundingSphere(): Computed radius is NaN. The instanced position data is likely to have NaN values.', this);
+			}
+		}
 	}
 
 }
@@ -105,6 +140,8 @@ void trimSegment(const in vec4 start, inout vec4 end) {
 
     end.xyz = mix(start.xyz, end.xyz, alpha);
 }
+
+#include <logdepthbuf_pars_vertex>
 
 void main() {
     float aspect = resolution.x / resolution.y;
@@ -215,6 +252,7 @@ void main() {
     clip.xy += offset;
 
     gl_Position = clip;
+    
     gl_Position.xyz /= gl_Position.w;
     gl_Position.w = 1.0;
 
@@ -230,14 +268,19 @@ void main() {
             vUv = (uvTransform * vec3(vUv, 1.)).xy;
         #endif
     #endif
+
+    #include <logdepthbuf_vertex>
 }
 `;
 
 var fragmentShader = `
+#include <common>
+
 uniform float opacity;
 uniform vec3 color;
 
 #include <map_pars_fragment>
+#include <logdepthbuf_pars_fragment>
 
 varying vec2 vUv;
 
@@ -245,6 +288,7 @@ void main() {
     vec4 diffuseColor = vec4(color, opacity);
     #include <map_fragment>
     gl_FragColor = diffuseColor;
+    #include <logdepthbuf_fragment>
 }
 `;
 
@@ -341,9 +385,9 @@ class InstancedLine extends THREE.Mesh {
 		super(geometry, material);
 
 		this.type = 'InstancedLine';
-
-		this.frustumCulled = false; // for test
 	}
+
+	// TODO raycast
 
 }
 
