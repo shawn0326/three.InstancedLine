@@ -83,7 +83,7 @@
 			// prev2---prev1---next1---next2
 
 			var instanceBuffer = new THREE.InstancedInterleavedBuffer(new Float32Array(bufferArray), 4, 1);
-			instanceBuffer.count -= 3; // fix count
+			instanceBuffer.count = Math.max(0, instanceBuffer.count - 3); // fix count
 
 			this.setAttribute('instancePrev2', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 0));
 			this.setAttribute('instancePrev1', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 4));
@@ -91,6 +91,7 @@
 			this.setAttribute('instanceNext2', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 12));
 			this.setAttribute('instancePrevDist', new THREE.InterleavedBufferAttribute(instanceBuffer, 1, 7));
 			this.setAttribute('instanceNextDist', new THREE.InterleavedBufferAttribute(instanceBuffer, 1, 11));
+			delete this._maxInstanceCount;
 			this.computeBoundingBox();
 			this.computeBoundingSphere();
 			return this;
