@@ -1,4 +1,6 @@
 export default `
+#include <common>
+
 attribute vec3 instancePrev2;
 attribute vec3 instancePrev1;
 attribute vec3 instanceNext1;
