@@ -1,6 +1,13 @@
 import vertexShader from './shaders/vertex.glsl.js';
 import fragmentShader from './shaders/fragment.glsl.js';
 
+// Fix shader bug
+const modifiedShaderChunk = THREE.ShaderChunk.logdepthbuf_vertex.replace(
+	'vIsPerspective = float( isPerspectiveMatrix( projectionMatrix ) )',
+	'vIsPerspective = isPerspectiveMatrix( projectionMatrix ) ? 1.0 : 0.0'
+);
+const modifiedVertexShader =  vertexShader.replace('#include <logdepthbuf_vertex>', modifiedShaderChunk);
+
 export class InstancedLineMaterial extends THREE.ShaderMaterial {
 
 	constructor() {
@@ -22,7 +29,7 @@ export class InstancedLineMaterial extends THREE.ShaderMaterial {
 
 				uvTransform: { value: new THREE.Matrix3() }
 			},
-			vertexShader: vertexShader,
+			vertexShader: modifiedVertexShader,
 			fragmentShader: fragmentShader
 		});
 	}

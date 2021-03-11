@@ -257,6 +257,8 @@ void main() {
 
     gl_Position = clip;
     
+    #include <logdepthbuf_vertex>
+
     gl_Position.xyz /= gl_Position.w;
     gl_Position.w = 1.0;
 
@@ -272,8 +274,6 @@ void main() {
             vUv = (uvTransform * vec3(vUv, 1.)).xy;
         #endif
     #endif
-
-    #include <logdepthbuf_vertex>
 }
 `;
 
@@ -296,6 +296,13 @@ void main() {
 }
 `;
 
+// Fix shader bug
+const modifiedShaderChunk = THREE.ShaderChunk.logdepthbuf_vertex.replace(
+	'vIsPerspective = float( isPerspectiveMatrix( projectionMatrix ) )',
+	'vIsPerspective = isPerspectiveMatrix( projectionMatrix ) ? 1.0 : 0.0'
+);
+const modifiedVertexShader =  vertexShader.replace('#include <logdepthbuf_vertex>', modifiedShaderChunk);
+
 class InstancedLineMaterial extends THREE.ShaderMaterial {
 
 	constructor() {
@@ -317,7 +324,7 @@ class InstancedLineMaterial extends THREE.ShaderMaterial {
 
 				uvTransform: { value: new THREE.Matrix3() }
 			},
-			vertexShader: vertexShader,
+			vertexShader: modifiedVertexShader,
 			fragmentShader: fragmentShader
 		});
 	}

@@ -142,6 +142,8 @@ void main() {
 
     gl_Position = clip;
     
+    #include <logdepthbuf_vertex>
+
     gl_Position.xyz /= gl_Position.w;
     gl_Position.w = 1.0;
 
@@ -157,7 +159,5 @@ void main() {
             vUv = (uvTransform * vec3(vUv, 1.)).xy;
         #endif
     #endif
-
-    #include <logdepthbuf_vertex>
 }
 `;
