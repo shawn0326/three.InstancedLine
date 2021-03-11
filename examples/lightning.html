@@ -124,6 +124,7 @@
     });
     gui.add(line.material.defines, 'SIMPLE_UV').onChange(() => line.material.needsUpdate = true);
     // gui.add(line.material.defines, 'SCREEN_UV').onChange(() => line.material.needsUpdate = true);
+    gui.add(line.material.defines, 'FLAT_W').onChange(() => line.material.needsUpdate = true);
 
     const uvFolder = gui.addFolder('uv');
     uvFolder.add(params, 'repeat', 0.01, 10, 0.01).onChange(value => {

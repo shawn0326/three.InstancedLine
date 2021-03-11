@@ -144,10 +144,13 @@ void main() {
     
     #include <logdepthbuf_vertex>
 
-    gl_Position.xyz /= gl_Position.w;
-    gl_Position.w = 1.0;
+    #ifdef FLAT_W
+        gl_Position.xyz /= gl_Position.w;
+        gl_Position.w = 1.0;
+    #endif
 
     // uv
+    // TODO trim uv
     #ifdef SIMPLE_UV
         vUv = (uvTransform * vec3(uv, 1.)).xy;
     #else
