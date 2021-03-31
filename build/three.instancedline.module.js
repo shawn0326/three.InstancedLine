@@ -260,8 +260,10 @@ void main() {
     #include <logdepthbuf_vertex>
 
     #ifdef FLAT_W
-        gl_Position.xyz /= gl_Position.w;
-        gl_Position.w = 1.0;
+        if (gl_Position.w > 0.0) {
+            gl_Position.xyz /= gl_Position.w;
+            gl_Position.w = 1.0;
+        }
     #endif
 
     // uv
