@@ -164,5 +164,9 @@ void main() {
             vUv = (uvTransform * vec3(vUv, 1.)).xy;
         #endif
     #endif
+
+    #ifdef SWAP_UV
+        vUv = vUv.yx;
+    #endif
 }
 `;

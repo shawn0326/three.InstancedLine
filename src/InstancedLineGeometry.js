@@ -17,6 +17,35 @@ const index = [
 
 const _vec3_1 = new THREE.Vector3();
 
+function setBox3FromBuffer(box, buffer) {
+	let minX = +Infinity;
+	let minY = +Infinity;
+	let minZ = +Infinity;
+
+	let maxX = -Infinity;
+	let maxY = -Infinity;
+	let maxZ = -Infinity;
+
+	for (let i = 0, l = buffer.count + 2; i < l; i++) {
+		const x = buffer.array[i * 4 + 0];
+		const y = buffer.array[i * 4 + 1];
+		const z = buffer.array[i * 4 + 2];
+
+		if (x < minX) minX = x;
+		if (y < minY) minY = y;
+		if (z < minZ) minZ = z;
+
+		if (x > maxX) maxX = x;
+		if (y > maxY) maxY = y;
+		if (z > maxZ) maxZ = z;
+	}
+
+	box.min.set(minX, minY, minZ);
+	box.max.set(maxX, maxY, maxZ);
+
+	return box;
+}
+
 export class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 
 	constructor() {
@@ -76,8 +105,10 @@ export class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 
 		const instancePrev1 = this.attributes.instancePrev1;
 
-		if (instancePrev1 !== undefined) {
-			this.boundingBox.setFromBufferAttribute(instancePrev1);
+		if (instancePrev1 !== undefined && instancePrev1.data.count > 0) {
+			setBox3FromBuffer(this.boundingBox, instancePrev1.data);
+		} else {
+			this.boundingBox.makeEmpty();
 		}
 	}
 
@@ -91,14 +122,14 @@ export class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 		}
 
 		const instancePrev1 = this.attributes.instancePrev1;
-		if (instancePrev1 !== undefined) {
+		if (instancePrev1 !== undefined && instancePrev1.data.count > 0) {
 			const center = this.boundingSphere.center;
 			this.boundingBox.getCenter(center);
 
 			let maxRadiusSq = 0;
 
-			for (let i = 0, il = instancePrev1.count; i < il; i++) {
-				_vec3_1.fromBufferAttribute(instancePrev1, i);
+			for (let i = 0, il = instancePrev1.data.count + 2; i < il; i++) {
+				_vec3_1.fromArray(instancePrev1.data.array, i * 4);
 				maxRadiusSq = Math.max(maxRadiusSq, center.distanceToSquared(_vec3_1));
 			}
 
@@ -107,6 +138,8 @@ export class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 			if (isNaN(this.boundingSphere.radius)) {
 				console.error('THREE.InstancedLineGeometry.computeBoundingSphere(): Computed radius is NaN. The instanced position data is likely to have NaN values.', this);
 			}
+		} else {
+			this.boundingSphere.makeEmpty();
 		}
 	}
 

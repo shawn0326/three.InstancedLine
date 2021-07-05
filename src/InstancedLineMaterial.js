@@ -16,6 +16,7 @@ export class InstancedLineMaterial extends THREE.ShaderMaterial {
 			defines: {
 				DISABLE_CORNER_BROKEN: false,
 				FLAT_W: true,
+				SWAP_UV: false,
 				SIMPLE_UV: false,
 				SCREEN_UV: false // TODO
 			},
