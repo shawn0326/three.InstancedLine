@@ -291,7 +291,7 @@ void main() {
 
     gl_Position = clip;
     
-    vec4 mvPosition = prev;
+    vec4 mvPosition = curr;
     #include <fog_vertex>
     #include <logdepthbuf_vertex>
 
