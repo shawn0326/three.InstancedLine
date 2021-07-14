@@ -30,6 +30,7 @@ void trimSegment(const in vec4 start, inout vec4 end) {
     end.xyz = mix(start.xyz, end.xyz, alpha);
 }
 
+#include <fog_pars_vertex>
 #include <logdepthbuf_pars_vertex>
 
 void main() {
@@ -142,6 +143,8 @@ void main() {
 
     gl_Position = clip;
     
+    vec4 mvPosition = curr;
+    #include <fog_vertex>
     #include <logdepthbuf_vertex>
 
     #ifdef FLAT_W

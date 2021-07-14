@@ -178,6 +178,7 @@ void trimSegment(const in vec4 start, inout vec4 end) {
     end.xyz = mix(start.xyz, end.xyz, alpha);
 }
 
+#include <fog_pars_vertex>
 #include <logdepthbuf_pars_vertex>
 
 void main() {
@@ -290,6 +291,8 @@ void main() {
 
     gl_Position = clip;
     
+    vec4 mvPosition = prev;
+    #include <fog_vertex>
     #include <logdepthbuf_vertex>
 
     #ifdef FLAT_W
@@ -326,6 +329,7 @@ uniform float opacity;
 uniform vec3 color;
 
 #include <map_pars_fragment>
+#include <fog_pars_fragment>
 #include <logdepthbuf_pars_fragment>
 
 varying vec2 vUv;
@@ -334,6 +338,7 @@ void main() {
     vec4 diffuseColor = vec4(color, opacity);
     #include <map_fragment>
     gl_FragColor = diffuseColor;
+    #include <fog_fragment>
     #include <logdepthbuf_fragment>
 }
 `;
@@ -357,20 +362,24 @@ class InstancedLineMaterial extends THREE.ShaderMaterial {
 				SIMPLE_UV: false,
 				SCREEN_UV: false // TODO
 			},
-			uniforms: {
-				resolution: { value: new THREE.Vector2(512, 512) },
-				lineWidth: { value: 2 },
-				cornerThreshold: { value: 0.4 },
+			uniforms: THREE.UniformsUtils.merge([
+				THREE.UniformsLib['fog'],
+				{
+					resolution: { value: new THREE.Vector2(512, 512) },
+					lineWidth: { value: 2 },
+					cornerThreshold: { value: 0.4 },
 
-				opacity: { value: 1 },
-				color: { value: new THREE.Color() },
-				map: { value: null },
+					opacity: { value: 1 },
+					color: { value: new THREE.Color() },
+					map: { value: null },
 
-				uvTransform: { value: new THREE.Matrix3() }
-			},
+					uvTransform: { value: new THREE.Matrix3() }
+				}
+			]),
 			vertexShader: modifiedVertexShader,
 			fragmentShader: fragmentShader
 		});
+		this.fog = true;
 	}
 
 	set lineWidth(value) {

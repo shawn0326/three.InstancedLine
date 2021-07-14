@@ -20,20 +20,24 @@ export class InstancedLineMaterial extends THREE.ShaderMaterial {
 				SIMPLE_UV: false,
 				SCREEN_UV: false // TODO
 			},
-			uniforms: {
-				resolution: { value: new THREE.Vector2(512, 512) },
-				lineWidth: { value: 2 },
-				cornerThreshold: { value: 0.4 },
+			uniforms: THREE.UniformsUtils.merge([
+				THREE.UniformsLib['fog'],
+				{
+					resolution: { value: new THREE.Vector2(512, 512) },
+					lineWidth: { value: 2 },
+					cornerThreshold: { value: 0.4 },
 
-				opacity: { value: 1 },
-				color: { value: new THREE.Color() },
-				map: { value: null },
+					opacity: { value: 1 },
+					color: { value: new THREE.Color() },
+					map: { value: null },
 
-				uvTransform: { value: new THREE.Matrix3() }
-			},
+					uvTransform: { value: new THREE.Matrix3() }
+				}
+			]),
 			vertexShader: modifiedVertexShader,
 			fragmentShader: fragmentShader
 		});
+		this.fog = true;
 	}
 
 	set lineWidth(value) {
