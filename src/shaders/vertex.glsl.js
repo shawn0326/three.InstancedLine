@@ -17,6 +17,11 @@ uniform float cornerThreshold;
 uniform mat3 uvTransform;
 varying vec2 vUv;
 
+#ifdef USE_ALPHAMAP
+    uniform mat3 uvTransform1;
+    varying vec2 vAlphaUv;
+#endif
+
 void trimSegment(const in vec4 start, inout vec4 end) {
     // trim end segment so it terminates between the camera plane and the near plane
 
@@ -156,20 +161,28 @@ void main() {
 
     // uv
     // TODO trim uv
+    vec2 tUv = vec2(0.0, 0.0);
     #ifdef SIMPLE_UV
-        vUv = (uvTransform * vec3(uv, 1.)).xy;
+        tUv = uv;
     #else
         #ifdef SCREEN_UV
-            vUv = (uvTransform * vec3(uv, 1.)).xy;
+            tUv = uv;
         #else
-            vUv.x = uv.x;
-            vUv.y = mix(instancePrevDist, instanceNextDist, flagY);
-            vUv = (uvTransform * vec3(vUv, 1.)).xy;
+            tUv.x = uv.x;
+            tUv.y = mix(instancePrevDist, instanceNextDist, flagY);
         #endif
+    #endif
+
+    vUv = (uvTransform * vec3(tUv, 1.)).xy;
+    #ifdef USE_ALPHAMAP
+        vAlphaUv = (uvTransform1 * vec3(tUv, 1.)).xy;
     #endif
 
     #ifdef SWAP_UV
         vUv = vUv.yx;
+        #ifdef USE_ALPHAMAP
+            vAlphaUv = vAlphaUv.yx;
+        #endif
     #endif
 }
 `;

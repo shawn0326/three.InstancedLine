@@ -165,6 +165,11 @@ uniform float cornerThreshold;
 uniform mat3 uvTransform;
 varying vec2 vUv;
 
+#ifdef USE_ALPHAMAP
+    uniform mat3 uvTransform1;
+    varying vec2 vAlphaUv;
+#endif
+
 void trimSegment(const in vec4 start, inout vec4 end) {
     // trim end segment so it terminates between the camera plane and the near plane
 
@@ -304,20 +309,28 @@ void main() {
 
     // uv
     // TODO trim uv
+    vec2 tUv = vec2(0.0, 0.0);
     #ifdef SIMPLE_UV
-        vUv = (uvTransform * vec3(uv, 1.)).xy;
+        tUv = uv;
     #else
         #ifdef SCREEN_UV
-            vUv = (uvTransform * vec3(uv, 1.)).xy;
+            tUv = uv;
         #else
-            vUv.x = uv.x;
-            vUv.y = mix(instancePrevDist, instanceNextDist, flagY);
-            vUv = (uvTransform * vec3(vUv, 1.)).xy;
+            tUv.x = uv.x;
+            tUv.y = mix(instancePrevDist, instanceNextDist, flagY);
         #endif
+    #endif
+
+    vUv = (uvTransform * vec3(tUv, 1.)).xy;
+    #ifdef USE_ALPHAMAP
+        vAlphaUv = (uvTransform1 * vec3(tUv, 1.)).xy;
     #endif
 
     #ifdef SWAP_UV
         vUv = vUv.yx;
+        #ifdef USE_ALPHAMAP
+            vAlphaUv = vAlphaUv.yx;
+        #endif
     #endif
 }
 `;
@@ -329,6 +342,12 @@ uniform float opacity;
 uniform vec3 color;
 
 #include <map_pars_fragment>
+
+#ifdef USE_ALPHAMAP
+	uniform sampler2D alphaMap;
+    varying vec2 vAlphaUv;
+#endif
+
 #include <fog_pars_fragment>
 #include <logdepthbuf_pars_fragment>
 
@@ -337,6 +356,11 @@ varying vec2 vUv;
 void main() {
     vec4 diffuseColor = vec4(color, opacity);
     #include <map_fragment>
+
+    #ifdef USE_ALPHAMAP
+	    diffuseColor.a *= texture2D(alphaMap, vAlphaUv).g;
+    #endif
+
     gl_FragColor = diffuseColor;
     #include <fog_fragment>
     #include <logdepthbuf_fragment>
@@ -357,7 +381,7 @@ class InstancedLineMaterial extends THREE.ShaderMaterial {
 			type: 'InstancedLineMaterial',
 			defines: {
 				DISABLE_CORNER_BROKEN: false,
-				FLAT_W: true,
+				FLAT_W: false,
 				SWAP_UV: false,
 				SIMPLE_UV: false,
 				SCREEN_UV: false // TODO
@@ -372,8 +396,10 @@ class InstancedLineMaterial extends THREE.ShaderMaterial {
 					opacity: { value: 1 },
 					color: { value: new THREE.Color() },
 					map: { value: null },
+					alphaMap: { value: null },
 
-					uvTransform: { value: new THREE.Matrix3() }
+					uvTransform: { value: new THREE.Matrix3() },
+					uvTransform1: { value: new THREE.Matrix3() } // for alpha map
 				}
 			]),
 			vertexShader: modifiedVertexShader,
@@ -436,6 +462,26 @@ class InstancedLineMaterial extends THREE.ShaderMaterial {
 
 	get uvTransform() {
 		return this.uniforms.uvTransform.value;
+	}
+
+	set alphaMap(value) {
+		if (this.uniforms) {
+			this.uniforms.alphaMap.value = value;
+		}
+	}
+
+	get alphaMap() {
+		return this.uniforms.alphaMap.value;
+	}
+
+	set uvTransform1(value) {
+		if (this.uniforms) {
+			this.uniforms.uvTransform1.value = value;
+		}
+	}
+
+	get uvTransform1() {
+		return this.uniforms.uvTransform1.value;
 	}
 
 }
