@@ -321,16 +321,13 @@ void main() {
         #endif
     #endif
 
+    #ifdef SWAP_UV
+		tUv = tUv.yx;
+	#endif
+
     vUv = (uvTransform * vec3(tUv, 1.)).xy;
     #ifdef USE_ALPHAMAP
         vAlphaUv = (uvTransform1 * vec3(tUv, 1.)).xy;
-    #endif
-
-    #ifdef SWAP_UV
-        vUv = vUv.yx;
-        #ifdef USE_ALPHAMAP
-            vAlphaUv = vAlphaUv.yx;
-        #endif
     #endif
 }
 `;
