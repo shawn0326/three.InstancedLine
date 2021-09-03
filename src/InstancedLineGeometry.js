@@ -27,9 +27,9 @@ function setBox3FromBuffer(box, buffer) {
 	let maxZ = -Infinity;
 
 	for (let i = 0, l = buffer.count + 2; i < l; i++) {
-		const x = buffer.array[i * 4 + 0];
-		const y = buffer.array[i * 4 + 1];
-		const z = buffer.array[i * 4 + 2];
+		const x = buffer.array[i * buffer.stride + 0];
+		const y = buffer.array[i * buffer.stride + 1];
+		const z = buffer.array[i * buffer.stride + 2];
 
 		if (x < minX) minX = x;
 		if (y < minY) minY = y;
@@ -58,10 +58,11 @@ export class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 		this.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
 	}
 
-	setFromPoints(points) {
+	setFromPoints(points, breakIndices) {
 		// Convert to flat array and add start/end point
 		// 0   0---1---2---3---4   4
 
+		const useBreak = breakIndices && breakIndices.length > 0;
 		const bufferArray = [];
 		const length = points.length;
 		let dist = 0;
@@ -70,25 +71,44 @@ export class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 				dist += p.distanceTo(points[i - 1]);
 			}
 
-			bufferArray.push(p.x, p.y, p.z, dist);
-			if (i === 0 || i === length - 1) {
+			if (useBreak) {
+				let breakState = 0;
+				if (breakIndices.indexOf(i) > -1 || breakIndices.indexOf(i + 1) > -1) {
+					breakState = 1;
+				}
+
+				bufferArray.push(p.x, p.y, p.z, dist, breakState);
+				if (i === 0 || i === length - 1) {
+					bufferArray.push(p.x, p.y, p.z, dist, breakState);
+				}
+			} else {
 				bufferArray.push(p.x, p.y, p.z, dist);
+				if (i === 0 || i === length - 1) {
+					bufferArray.push(p.x, p.y, p.z, dist);
+				}
 			}
 		});
 
 		// Convert to instance buffer
 		// prev2---prev1---next1---next2
 
-		const instanceBuffer = new THREE.InstancedInterleavedBuffer(new Float32Array(bufferArray), 4, 1);
+		let stride = useBreak ? 5 : 4;
+
+		const instanceBuffer = new THREE.InstancedInterleavedBuffer(new Float32Array(bufferArray), stride, 1);
 		instanceBuffer.count = Math.max(0, instanceBuffer.count - 3); // fix count
 
-		this.setAttribute('instancePrev2', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 0));
-		this.setAttribute('instancePrev1', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 4));
-		this.setAttribute('instanceNext1', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 8));
-		this.setAttribute('instanceNext2', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, 12));
+		this.setAttribute('instancePrev2', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, stride * 0));
+		this.setAttribute('instancePrev1', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, stride * 1));
+		this.setAttribute('instanceNext1', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, stride * 2));
+		this.setAttribute('instanceNext2', new THREE.InterleavedBufferAttribute(instanceBuffer, 3, stride * 3));
 
-		this.setAttribute('instancePrevDist', new THREE.InterleavedBufferAttribute(instanceBuffer, 1, 7));
-		this.setAttribute('instanceNextDist', new THREE.InterleavedBufferAttribute(instanceBuffer, 1, 11));
+		this.setAttribute('instancePrevDist', new THREE.InterleavedBufferAttribute(instanceBuffer, 1, stride * 1 + 3));
+		this.setAttribute('instanceNextDist', new THREE.InterleavedBufferAttribute(instanceBuffer, 1, stride * 2 + 3));
+
+		if (useBreak) {
+			this.setAttribute('instancePrevBreak', new THREE.InterleavedBufferAttribute(instanceBuffer, 1, stride * 1 + 4));
+			this.setAttribute('instanceNextBreak', new THREE.InterleavedBufferAttribute(instanceBuffer, 1, stride * 2 + 4));
+		}
 
 		delete this._maxInstanceCount;
 
@@ -129,7 +149,7 @@ export class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 			let maxRadiusSq = 0;
 
 			for (let i = 0, il = instancePrev1.data.count + 2; i < il; i++) {
-				_vec3_1.fromArray(instancePrev1.data.array, i * 4);
+				_vec3_1.fromArray(instancePrev1.data.array, i * instancePrev1.data.stride);
 				maxRadiusSq = Math.max(maxRadiusSq, center.distanceToSquared(_vec3_1));
 			}
 

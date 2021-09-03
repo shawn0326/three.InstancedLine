@@ -9,6 +9,13 @@ attribute vec3 instanceNext2;
 attribute float instancePrevDist;
 attribute float instanceNextDist;
 
+#ifdef LINE_BREAK
+    attribute float instancePrevBreak;
+    attribute float instanceNextBreak;
+
+    varying float vDiscard;
+#endif
+
 uniform float lineWidth;
 uniform vec2 resolution;
 
@@ -46,6 +53,15 @@ void main() {
     vec4 prev = modelViewMatrix * vec4(mix(instancePrev2, instancePrev1, flagY), 1.0);
     vec4 curr = modelViewMatrix * vec4(mix(instancePrev1, instanceNext1, flagY), 1.0);
     vec4 next = modelViewMatrix * vec4(mix(instanceNext1, instanceNext2, flagY), 1.0);
+
+    #ifdef LINE_BREAK
+        vDiscard = instancePrevBreak * instanceNextBreak;
+        if (position.y > 0.0 && instanceNextBreak > 0.5) {
+            next = curr;
+        } else if (position.y < 0.0 && instancePrevBreak > 0.5) {
+            prev = curr;
+        }
+    #endif
 
     // special case for perspective projection, and segments that terminate either in, or behind, the camera plane
     bool perspective = (projectionMatrix[2][3] == -1.0); // 4th entry in the 3rd column
