@@ -74,7 +74,10 @@ class InstancedLineGeometry extends THREE.InstancedBufferGeometry {
 
 			if (useBreak) {
 				let breakState = 0;
-				if (breakIndices.indexOf(i) > -1 || breakIndices.indexOf(i + 1) > -1) {
+				if (breakIndices.indexOf(i) > -1) {
+					breakState = 1;
+					dist = 0;
+				} else if (breakIndices.indexOf(i + 1) > -1) {
 					breakState = 1;
 				}
 
